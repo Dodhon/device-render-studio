@@ -120,6 +120,34 @@ async function canvasSignature(page) {
   });
 }
 
+async function hasUploadedImageBands(page) {
+  await page.waitForTimeout(180);
+
+  return page.evaluate(() => {
+    const canvas = document.querySelector(".render-canvas");
+    const sample = document.createElement("canvas");
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    sample.width = 240;
+    sample.height = 160;
+    context.drawImage(canvas, 0, 0, sample.width, sample.height);
+
+    const data = context.getImageData(0, 0, sample.width, sample.height).data;
+    const counts = { red: 0, green: 0, blue: 0 };
+
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+
+      if (red > 150 && green < 120 && blue < 150) counts.red += 1;
+      if (green > 130 && red < 130 && blue < 160) counts.green += 1;
+      if (blue > 150 && red < 150 && green < 170) counts.blue += 1;
+    }
+
+    return counts.red > 10 && counts.green > 10 && counts.blue > 10;
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Device Render Studio");
@@ -160,6 +188,12 @@ test("maps uploaded image and playing video files onto the device screen", async
       message: "uploaded image should alter the visible render",
     })
     .not.toBe(defaultSignature);
+  await expect
+    .poll(() => hasUploadedImageBands(page), {
+      timeout: 5_000,
+      message: "uploaded image should show top, middle, and bottom bands",
+    })
+    .toBe(true);
 
   const videoBuffer = await makeWebmFixture(page);
 

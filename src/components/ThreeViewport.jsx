@@ -197,6 +197,26 @@ function replaceImportedMaterial(model, object, material) {
   object.material = material;
 }
 
+function normalizeImportedDisplayUvs(geometry) {
+  const position = geometry.attributes.position;
+  if (!position) return;
+
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox;
+  const width = max.x - min.x || 1;
+  const height = max.y - min.y || 1;
+  const uvs = [];
+
+  for (let index = 0; index < position.count; index += 1) {
+    const x = position.getX(index);
+    const y = position.getY(index);
+    uvs.push((x - min.x) / width, (y - min.y) / height);
+  }
+
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.attributes.uv.needsUpdate = true;
+}
+
 function installImportedPhoneModel(model, materials) {
   model.name = "iPhone 17 Pro GLB";
   model.scale.setScalar(IPHONE_MODEL_SCALE);
@@ -212,6 +232,7 @@ function installImportedPhoneModel(model, materials) {
       : [object.material?.name].filter(Boolean);
 
     if (object.name === "Cube004_2" || materialNames.includes("Display")) {
+      normalizeImportedDisplayUvs(object.geometry);
       replaceImportedMaterial(model, object, materials.screen);
       object.renderOrder = 2;
       return;
