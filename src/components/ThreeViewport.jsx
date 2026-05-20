@@ -3,8 +3,10 @@ import React, {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
   BACKGROUND_PRESETS,
   MATERIAL_PRESETS,
@@ -12,6 +14,8 @@ import {
 
 const SCREEN_WIDTH = 2.42;
 const SCREEN_HEIGHT = 5.24;
+const IPHONE_MODEL_URL = `${import.meta.env.BASE_URL}models/iphone-17-pro.glb`;
+const IPHONE_MODEL_SCALE = 38;
 
 const CAMERA_PRESETS = {
   front: {
@@ -150,6 +154,76 @@ function applyCoverCrop(texture, imageWidth, imageHeight) {
   texture.needsUpdate = true;
 }
 
+function disposeMaterialResources(material, seenMaterials = new Set()) {
+  const materials = Array.isArray(material) ? material : [material];
+
+  materials.forEach((item) => {
+    if (!item || seenMaterials.has(item)) return;
+    seenMaterials.add(item);
+    if (item.map) item.map.dispose();
+    item.dispose();
+  });
+}
+
+function disposeSceneResources(scene) {
+  const seenGeometries = new Set();
+  const seenMaterials = new Set();
+
+  scene.traverse((object) => {
+    if (object.geometry && !seenGeometries.has(object.geometry)) {
+      seenGeometries.add(object.geometry);
+      object.geometry.dispose();
+    }
+
+    if (object.material) {
+      disposeMaterialResources(object.material, seenMaterials);
+    }
+
+    object.userData?.replacedMaterials?.forEach((material) => {
+      disposeMaterialResources(material, seenMaterials);
+    });
+  });
+}
+
+function replaceImportedMaterial(model, object, material) {
+  if (object.material && object.material !== material) {
+    model.userData.replacedMaterials ??= new Set();
+    const materials = Array.isArray(object.material)
+      ? object.material
+      : [object.material];
+    materials.forEach((item) => model.userData.replacedMaterials.add(item));
+  }
+
+  object.material = material;
+}
+
+function installImportedPhoneModel(model, materials) {
+  model.name = "iPhone 17 Pro GLB";
+  model.scale.setScalar(IPHONE_MODEL_SCALE);
+
+  model.traverse((object) => {
+    if (!object.isMesh) return;
+
+    object.castShadow = true;
+    object.receiveShadow = true;
+
+    const materialNames = Array.isArray(object.material)
+      ? object.material.map((material) => material?.name).filter(Boolean)
+      : [object.material?.name].filter(Boolean);
+
+    if (object.name === "Cube004_2" || materialNames.includes("Display")) {
+      replaceImportedMaterial(model, object, materials.screen);
+      object.renderOrder = 2;
+      return;
+    }
+
+    if (materialNames.includes("Glass")) {
+      replaceImportedMaterial(model, object, materials.glass);
+      object.renderOrder = 3;
+    }
+  });
+}
+
 function makePhone() {
   const group = new THREE.Group();
 
@@ -178,10 +252,12 @@ function makePhone() {
     color: "#ffffff",
     transparent: true,
     opacity: 0.16,
+    depthWrite: false,
     clearcoat: 1,
     clearcoatRoughness: 0.04,
     metalness: 0,
     roughness: 0.05,
+    side: THREE.DoubleSide,
   });
 
   const body = new THREE.Mesh(
@@ -210,6 +286,8 @@ function makePhone() {
 
   const screenMaterial = new THREE.MeshBasicMaterial({
     map: makeDefaultScreenTexture(),
+    side: THREE.DoubleSide,
+    toneMapped: false,
   });
   const screen = new THREE.Mesh(
     createRoundedPlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT, 0.27),
@@ -330,6 +408,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
   const targetCameraRef = useRef(new THREE.Vector3());
   const settingsRef = useRef(settings);
   const dragRef = useRef({ active: false, x: 0, y: 0 });
+  const [modelSource, setModelSource] = useState("procedural");
 
   useImperativeHandle(ref, () => ({
     exportPng() {
@@ -369,6 +448,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
       opacity: 0.18,
     });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), floorMaterial);
+    let disposed = false;
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -392,7 +472,30 @@ const ThreeViewport = forwardRef(function ThreeViewport(
 
     group.position.y = 0.02;
     group.scale.setScalar(0.9);
+    group.userData.proceduralChildren = [...group.children];
     scene.add(ambient, key, rim, fill, group, floor);
+
+    const modelLoader = new GLTFLoader();
+    modelLoader.load(
+      IPHONE_MODEL_URL,
+      (gltf) => {
+        if (disposed) {
+          disposeSceneResources(gltf.scene);
+          return;
+        }
+
+        installImportedPhoneModel(gltf.scene, materials);
+        group.userData.proceduralChildren.forEach((child) => {
+          child.visible = false;
+        });
+        group.add(gltf.scene);
+        setModelSource("iphone-17-pro-glb");
+      },
+      undefined,
+      () => {
+        if (!disposed) setModelSource("procedural-fallback");
+      },
+    );
 
     const initialPreset = CAMERA_PRESETS[settings.angle];
     group.rotation.copy(initialPreset.rotation);
@@ -473,6 +576,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
     animate();
 
     return () => {
+      disposed = true;
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
@@ -481,18 +585,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
       renderer.domElement.removeEventListener("pointercancel", onPointerUp);
       host.removeChild(renderer.domElement);
       renderer.dispose();
-      scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) {
-          const materialsList = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-          materialsList.forEach((material) => {
-            if (material.map) material.map.dispose();
-            material.dispose();
-          });
-        }
-      });
+      disposeSceneResources(scene);
     };
   }, [onDragEnd, onDragStart]);
 
@@ -648,6 +741,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
   return (
     <div
       className="viewport-host"
+      data-model-source={modelSource}
       data-screen-kind={screenMedia?.kind ?? "default"}
       ref={hostRef}
     />
