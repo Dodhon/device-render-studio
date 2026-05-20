@@ -160,7 +160,6 @@ button {
     border-color 160ms ease,
     background 160ms ease,
     color 160ms ease,
-    transform 160ms ease,
     box-shadow 160ms ease;
 }
 
@@ -171,7 +170,7 @@ button {
 .toggle-control:hover,
 .swatch:hover {
   border-color: #abc5dc;
-  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(17, 28, 39, 0.08);
 }
 
 .primary {
