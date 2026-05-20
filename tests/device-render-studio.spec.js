@@ -26,6 +26,23 @@ async function makePngFixture(page) {
   return Buffer.from(bytes);
 }
 
+async function makePlainPngFixture(page) {
+  const bytes = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 360;
+    canvas.height = 780;
+    const context = canvas.getContext("2d");
+
+    context.fillStyle = "#f9dfe8";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const response = await fetch(canvas.toDataURL("image/png"));
+    return Array.from(new Uint8Array(await response.arrayBuffer()));
+  });
+
+  return Buffer.from(bytes);
+}
+
 async function makeWebmFixture(page) {
   const bytes = await page.evaluate(async () => {
     const canvas = document.createElement("canvas");
@@ -148,6 +165,35 @@ async function hasUploadedImageBands(page) {
   });
 }
 
+async function hasFilledIslandCutout(page) {
+  await page.waitForTimeout(180);
+
+  return page.evaluate(() => {
+    const canvas = document.querySelector(".render-canvas");
+    const sample = document.createElement("canvas");
+    const context = sample.getContext("2d", { willReadFrequently: true });
+    sample.width = canvas.width;
+    sample.height = canvas.height;
+    context.drawImage(canvas, 0, 0);
+
+    const x = Math.floor(sample.width * 0.43);
+    const y = Math.floor(sample.height * 0.13);
+    const width = Math.floor(sample.width * 0.14);
+    const height = Math.floor(sample.height * 0.12);
+    const data = context.getImageData(x, y, width, height).data;
+    let blackPixels = 0;
+
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      if (red < 45 && green < 45 && blue < 45) blackPixels += 1;
+    }
+
+    return blackPixels > 350;
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Device Render Studio");
@@ -213,6 +259,27 @@ test("maps uploaded image and playing video files onto the device screen", async
     await canvasSignature(page),
   ];
   expect(new Set(videoSignatures).size).toBeGreaterThan(1);
+});
+
+test("renders the front camera island as a filled cutout", async ({ page }) => {
+  const fileInput = page.locator('input[type="file"]');
+  const imageBuffer = await makePlainPngFixture(page);
+
+  await page.getByRole("button", { name: "Front" }).first().click();
+  await fileInput.setInputFiles({
+    name: "plain-screen.png",
+    mimeType: "image/png",
+    buffer: imageBuffer,
+  });
+
+  await expect(page.getByText("plain-screen.png")).toBeVisible();
+  await expect(page.getByText("Image ready")).toBeVisible();
+  await expect
+    .poll(() => hasFilledIslandCutout(page), {
+      timeout: 5_000,
+      message: "camera island should be filled over a pale uploaded screen",
+    })
+    .toBe(true);
 });
 
 test("hovering toolbar controls does not shift the render viewport", async ({ page }) => {

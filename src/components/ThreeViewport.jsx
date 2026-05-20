@@ -217,6 +217,32 @@ function normalizeImportedDisplayUvs(geometry) {
   geometry.attributes.uv.needsUpdate = true;
 }
 
+function addImportedScreenCutouts(model) {
+  const cutoutMaterial = new THREE.MeshBasicMaterial({
+    color: "#050507",
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+
+  const island = new THREE.Mesh(
+    createRoundedPlaneGeometry(0.0102, 0.0034, 0.0017),
+    cutoutMaterial,
+  );
+  island.name = "Screen island fill";
+  island.position.set(-0.0036, 0.06715, 0.00474);
+  island.renderOrder = 5;
+
+  const camera = new THREE.Mesh(
+    new THREE.CircleGeometry(0.0019, 48),
+    cutoutMaterial,
+  );
+  camera.name = "Screen camera fill";
+  camera.position.set(0.00735, 0.06715, 0.00475);
+  camera.renderOrder = 5;
+
+  model.add(island, camera);
+}
+
 function installImportedPhoneModel(model, materials) {
   model.name = "iPhone 17 Pro GLB";
   model.scale.setScalar(IPHONE_MODEL_SCALE);
@@ -243,6 +269,8 @@ function installImportedPhoneModel(model, materials) {
       object.renderOrder = 3;
     }
   });
+
+  addImportedScreenCutouts(model);
 }
 
 function makePhone() {
