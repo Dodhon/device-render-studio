@@ -4,6 +4,8 @@ An original Rotato-style MVP for creating polished 3D device mockups in the brow
 
 This project does not copy Rotato branding, proprietary UI, or device model assets. The current device is generated procedurally with Three.js geometry.
 
+Live demo: https://dodhon.github.io/device-render-studio/
+
 ## Features
 
 - Real-time Three.js device renderer
