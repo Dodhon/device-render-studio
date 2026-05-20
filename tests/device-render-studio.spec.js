@@ -90,8 +90,8 @@ async function makeWebmFixture(page) {
 
 async function measureViewport(page) {
   return page.evaluate(() => {
-    const canvas = document.querySelector(".render-canvas").getBoundingClientRect();
-    const shell = document.querySelector(".viewport-shell").getBoundingClientRect();
+    const canvas = document.querySelector(".stage-area .render-canvas").getBoundingClientRect();
+    const shell = document.querySelector(".stage-area .viewport-shell").getBoundingClientRect();
 
     return {
       canvas: {
@@ -114,7 +114,7 @@ async function canvasSignature(page) {
   await page.waitForTimeout(140);
 
   return page.evaluate(() => {
-    const canvas = document.querySelector(".render-canvas");
+    const canvas = document.querySelector(".stage-area .render-canvas");
     const sample = document.createElement("canvas");
     const context = sample.getContext("2d", { willReadFrequently: true });
     sample.width = 80;
@@ -141,7 +141,7 @@ async function hasUploadedImageBands(page) {
   await page.waitForTimeout(180);
 
   return page.evaluate(() => {
-    const canvas = document.querySelector(".render-canvas");
+    const canvas = document.querySelector(".stage-area .render-canvas");
     const sample = document.createElement("canvas");
     const context = sample.getContext("2d", { willReadFrequently: true });
     sample.width = 240;
@@ -169,7 +169,7 @@ async function hasFilledIslandCutout(page) {
   await page.waitForTimeout(180);
 
   return page.evaluate(() => {
-    const canvas = document.querySelector(".render-canvas");
+    const canvas = document.querySelector(".stage-area .render-canvas");
     const sample = document.createElement("canvas");
     const context = sample.getContext("2d", { willReadFrequently: true });
     sample.width = canvas.width;
@@ -197,9 +197,9 @@ async function hasFilledIslandCutout(page) {
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Device Render Studio");
-  await expect(page.getByText("Device Render Studio")).toBeVisible();
-  await expect(page.locator(".render-canvas")).toBeVisible();
-  await expect(page.locator(".viewport-host")).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Device Render Studio home" })).toBeVisible();
+  await expect(page.locator(".stage-area .render-canvas")).toBeVisible();
+  await expect(page.locator(".stage-area .viewport-host")).toHaveAttribute(
     "data-model-source",
     "iphone-17-pro-glb",
     { timeout: 15_000 },
@@ -227,7 +227,7 @@ test("maps uploaded image and playing video files onto the device screen", async
 
   await expect(page.getByText("screen.png")).toBeVisible();
   await expect(page.getByText("Image ready")).toBeVisible();
-  await expect(page.locator(".viewport-host")).toHaveAttribute("data-screen-kind", "image");
+  await expect(page.locator(".stage-area .viewport-host")).toHaveAttribute("data-screen-kind", "image");
   await expect
     .poll(() => canvasSignature(page), {
       timeout: 5_000,
@@ -251,7 +251,7 @@ test("maps uploaded image and playing video files onto the device screen", async
 
   await expect(page.getByText("motion.webm")).toBeVisible();
   await expect(page.getByText("Video playing")).toBeVisible();
-  await expect(page.locator(".viewport-host")).toHaveAttribute("data-screen-kind", "video");
+  await expect(page.locator(".stage-area .viewport-host")).toHaveAttribute("data-screen-kind", "video");
 
   const videoSignatures = [
     await canvasSignature(page),
@@ -283,11 +283,16 @@ test("renders the front camera island as a filled cutout", async ({ page }) => {
 });
 
 test("hovering toolbar controls does not shift the render viewport", async ({ page }) => {
+  const studioApp = page.getByLabel("Device Render Studio app");
+  const importButton = studioApp.getByRole("button", { name: /import/i });
+  const exportButton = studioApp.getByRole("button", { name: /export png/i });
+
+  await importButton.scrollIntoViewIfNeeded();
   const before = await measureViewport(page);
 
-  await page.getByRole("button", { name: /import/i }).hover();
+  await importButton.hover();
   const afterImportHover = await measureViewport(page);
-  await page.getByRole("button", { name: /export png/i }).hover();
+  await exportButton.hover();
   const afterExportHover = await measureViewport(page);
 
   expect(afterImportHover).toEqual(before);
