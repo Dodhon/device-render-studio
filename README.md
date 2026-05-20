@@ -9,8 +9,9 @@ Live demo: https://dodhon.github.io/device-render-studio/
 ## Features
 
 - Real-time Three.js device renderer
-- Procedural smartphone body, screen, glass, side buttons, and camera details
-- Screenshot upload mapped onto the screen as a texture
+- Procedural iPhone-style body with rounded glass, metal frame, Dynamic Island, side buttons, and screen details
+- Image upload mapped onto the screen as a texture
+- Video upload mapped onto the screen as a looping WebGL video texture
 - Camera angle presets and pointer-drag orbiting
 - Device material, lighting, reflection, shadow, and background controls
 - PNG export from the WebGL canvas
@@ -28,4 +29,10 @@ Then open the local URL printed by Vite.
 
 ```bash
 npm run build
+```
+
+## Behavior Tests
+
+```bash
+npm run test:e2e
 ```

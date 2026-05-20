@@ -1,11 +1,13 @@
-import React, { useRef, useState } from "react";
-import { Camera, Check, Download, Image, MousePointer2 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, Check, Download, Image, MousePointer2, Video } from "lucide-react";
 import Inspector from "./components/Inspector.jsx";
 import ThreeViewport from "./components/ThreeViewport.jsx";
 import Toolbar from "./components/Toolbar.jsx";
 import { ANGLE_PRESETS, INITIAL_SETTINGS } from "./lib/presets.js";
 
-function PresetRail({ activeAngle, onPreset }) {
+function PresetRail({ activeAngle, renderMode, onPreset }) {
+  const RenderModeIcon = renderMode === "video" ? Video : Image;
+
   return (
     <div className="preset-rail" aria-label="Angle presets">
       <div className="rail-status">
@@ -34,8 +36,8 @@ function PresetRail({ activeAngle, onPreset }) {
 
       <div className="rail-meta">
         <span>
-          <Image size={15} />
-          1920 x 1080
+          <RenderModeIcon size={15} />
+          {renderMode === "video" ? "Video" : "Image"}
         </span>
         <span>
           <Download size={15} />
@@ -46,9 +48,19 @@ function PresetRail({ activeAngle, onPreset }) {
   );
 }
 
+function getToolbarStatus(screenMedia, playbackState) {
+  if (!screenMedia) return "Ready";
+  if (screenMedia.kind === "image") return "Image ready";
+  if (playbackState === "playing") return "Video playing";
+  if (playbackState === "error") return "Video issue";
+  if (playbackState === "paused") return "Video paused";
+  return "Video loading";
+}
+
 function App() {
-  const [screenImage, setScreenImage] = useState(null);
+  const [screenMedia, setScreenMedia] = useState(null);
   const [screenLabel, setScreenLabel] = useState("Demo screen");
+  const [playbackState, setPlaybackState] = useState("ready");
   const [settings, setSettings] = useState(INITIAL_SETTINGS);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -58,17 +70,59 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value }));
   };
 
+  useEffect(() => {
+    return () => {
+      if (screenMedia?.url?.startsWith("blob:")) {
+        URL.revokeObjectURL(screenMedia.url);
+      }
+    };
+  }, [screenMedia]);
+
   const handleUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScreenImage(reader.result);
-      setScreenLabel(file.name);
-    };
-    reader.readAsDataURL(file);
+    const kind = file.type.startsWith("video/")
+      ? "video"
+      : file.type.startsWith("image/")
+        ? "image"
+        : null;
+
+    if (!kind) {
+      event.target.value = "";
+      return;
+    }
+
+    setScreenMedia({
+      kind,
+      mimeType: file.type,
+      name: file.name,
+      url: URL.createObjectURL(file),
+    });
+    setScreenLabel(file.name);
+    setPlaybackState(kind === "video" ? "loading" : "ready");
+    event.target.value = "";
   };
+
+  const handleMediaReady = useCallback(() => {
+    setPlaybackState("ready");
+  }, []);
+
+  const handleMediaError = useCallback(() => {
+    setPlaybackState("error");
+  }, []);
+
+  const handlePlaybackStateChange = useCallback((state) => {
+    setPlaybackState(state);
+  }, []);
+
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   const handleExport = () => {
     const dataUrl = viewportRef.current?.exportPng();
@@ -91,6 +145,7 @@ function App() {
     <main className="app">
       <Toolbar
         screenLabel={screenLabel}
+        statusLabel={getToolbarStatus(screenMedia, playbackState)}
         onUpload={handleUpload}
         onExport={handleExport}
         onReset={handleReset}
@@ -102,10 +157,13 @@ function App() {
           <div className="viewport-shell">
             <ThreeViewport
               ref={viewportRef}
-              screenImage={screenImage}
+              screenMedia={screenMedia}
               settings={settings}
-              onDragStart={() => setIsDragging(true)}
-              onDragEnd={() => setIsDragging(false)}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onMediaError={handleMediaError}
+              onMediaReady={handleMediaReady}
+              onPlaybackStateChange={handlePlaybackStateChange}
             />
             <div className="canvas-hud top-left">
               <Check size={15} />
@@ -119,6 +177,7 @@ function App() {
 
           <PresetRail
             activeAngle={settings.angle}
+            renderMode={screenMedia?.kind ?? "image"}
             onPreset={(value) => updateSetting("angle", value)}
           />
         </section>

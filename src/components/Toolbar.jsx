@@ -10,6 +10,7 @@ import React from "react";
 
 export default function Toolbar({
   screenLabel,
+  statusLabel,
   onUpload,
   onExport,
   onReset,
@@ -35,7 +36,7 @@ export default function Toolbar({
         <div className="toolbar-divider" />
         <span className="status-pill">
           <Sparkles size={15} />
-          Ready
+          {statusLabel}
         </span>
         <span className="status-pill subtle">
           <PanelRight size={15} />
@@ -48,7 +49,7 @@ export default function Toolbar({
           ref={fileInputRef}
           className="visually-hidden"
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept="image/*,video/*"
           onChange={onUpload}
         />
         <button

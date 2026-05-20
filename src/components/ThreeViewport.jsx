@@ -10,8 +10,8 @@ import {
   MATERIAL_PRESETS,
 } from "../lib/presets.js";
 
-const SCREEN_WIDTH = 2.28;
-const SCREEN_HEIGHT = 4.94;
+const SCREEN_WIDTH = 2.42;
+const SCREEN_HEIGHT = 5.24;
 
 const CAMERA_PRESETS = {
   front: {
@@ -100,17 +100,17 @@ function makeDefaultScreenTexture() {
   context.fillRect(0, 0, 900, 1950);
 
   context.fillStyle = "rgba(255, 255, 255, 0.18)";
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     context.beginPath();
-    context.roundRect(90, 230 + i * 210, 720, 136, 34);
+    context.roundRect(90, 520 + i * 170, 720, 116, 34);
     context.fill();
   }
 
   context.fillStyle = "#ffffff";
   context.font = "700 72px Inter, system-ui, sans-serif";
-  context.fillText("Mockup", 96, 150);
+  context.fillText("Mockup", 96, 330);
   context.font = "500 34px Inter, system-ui, sans-serif";
-  context.fillText("Drop in any screenshot", 96, 205);
+  context.fillText("Drop in an image or video", 96, 392);
 
   context.fillStyle = "rgba(255, 255, 255, 0.9)";
   context.beginPath();
@@ -154,28 +154,30 @@ function makePhone() {
   const group = new THREE.Group();
 
   const bodyMaterial = new THREE.MeshPhysicalMaterial({
-    color: "#11151c",
-    clearcoat: 0.75,
-    clearcoatRoughness: 0.32,
-    metalness: 0.78,
-    roughness: 0.26,
+    color: "#161a20",
+    clearcoat: 0.92,
+    clearcoatRoughness: 0.22,
+    metalness: 0.82,
+    roughness: 0.2,
   });
   const edgeMaterial = new THREE.MeshPhysicalMaterial({
-    color: "#1f2730",
-    metalness: 0.62,
-    roughness: 0.28,
+    color: "#2d343d",
+    clearcoat: 0.72,
+    clearcoatRoughness: 0.18,
+    metalness: 0.88,
+    roughness: 0.18,
   });
   const darkGlassMaterial = new THREE.MeshPhysicalMaterial({
-    color: "#080b0f",
+    color: "#05070b",
     clearcoat: 1,
-    clearcoatRoughness: 0.08,
+    clearcoatRoughness: 0.045,
     metalness: 0,
-    roughness: 0.12,
+    roughness: 0.08,
   });
   const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: "#ffffff",
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.16,
     clearcoat: 1,
     clearcoatRoughness: 0.04,
     metalness: 0,
@@ -183,74 +185,112 @@ function makePhone() {
   });
 
   const body = new THREE.Mesh(
-    createRoundedBoxGeometry(2.72, 5.54, 0.28, 0.32),
+    createRoundedBoxGeometry(2.82, 5.78, 0.32, 0.44),
     bodyMaterial,
   );
   body.castShadow = true;
   body.receiveShadow = true;
   group.add(body);
 
-  const lip = new THREE.Mesh(
-    createRoundedPlaneGeometry(2.5, 5.26, 0.24),
+  const frontBezel = new THREE.Mesh(
+    createRoundedPlaneGeometry(2.62, 5.5, 0.34),
     darkGlassMaterial,
   );
-  lip.position.z = 0.205;
-  lip.castShadow = true;
-  group.add(lip);
+  frontBezel.position.z = 0.224;
+  frontBezel.castShadow = true;
+
+  const metalRim = new THREE.Mesh(
+    createRoundedPlaneGeometry(2.74, 5.66, 0.4),
+    edgeMaterial,
+  );
+  metalRim.position.z = 0.218;
+  metalRim.castShadow = true;
+  group.add(metalRim);
+  group.add(frontBezel);
 
   const screenMaterial = new THREE.MeshBasicMaterial({
     map: makeDefaultScreenTexture(),
   });
   const screen = new THREE.Mesh(
-    createRoundedPlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT, 0.19),
+    createRoundedPlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT, 0.27),
     screenMaterial,
   );
-  screen.position.z = 0.212;
+  screen.position.z = 0.236;
   screen.castShadow = false;
   group.add(screen);
 
   const glass = new THREE.Mesh(
-    createRoundedPlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT, 0.19),
+    createRoundedPlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT, 0.27),
     glassMaterial,
   );
-  glass.position.z = 0.218;
+  glass.position.z = 0.245;
   group.add(glass);
 
-  const cameraIsland = new THREE.Mesh(
-    createRoundedBoxGeometry(0.72, 0.28, 0.04, 0.12),
-    edgeMaterial,
+  const islandMaterial = new THREE.MeshPhysicalMaterial({
+    color: "#020306",
+    clearcoat: 1,
+    clearcoatRoughness: 0.03,
+    metalness: 0,
+    roughness: 0.04,
+  });
+  const dynamicIsland = new THREE.Mesh(
+    createRoundedBoxGeometry(0.66, 0.19, 0.035, 0.095),
+    islandMaterial,
   );
-  cameraIsland.position.set(0, 2.35, 0.245);
-  cameraIsland.castShadow = true;
-  group.add(cameraIsland);
+  dynamicIsland.position.set(0, 2.36, 0.272);
+  dynamicIsland.castShadow = true;
+  group.add(dynamicIsland);
 
   const lensMaterial = new THREE.MeshPhysicalMaterial({
-    color: "#05070a",
+    color: "#070a0f",
     clearcoat: 1,
-    roughness: 0.16,
-    metalness: 0.1,
+    clearcoatRoughness: 0.02,
+    roughness: 0.1,
+    metalness: 0.08,
   });
-  [-0.18, 0.18].forEach((x) => {
-    const lens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.07, 0.018, 40),
-      lensMaterial,
-    );
-    lens.rotation.x = Math.PI / 2;
-    lens.position.set(x, 2.35, 0.275);
-    group.add(lens);
-  });
+
+  const selfieLens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.038, 0.038, 0.014, 36),
+    lensMaterial,
+  );
+  selfieLens.rotation.x = Math.PI / 2;
+  selfieLens.position.set(0.22, 2.36, 0.294);
+  group.add(selfieLens);
+
+  const speaker = new THREE.Mesh(
+    createRoundedPlaneGeometry(0.34, 0.032, 0.016),
+    new THREE.MeshBasicMaterial({ color: "#1b222c", transparent: true, opacity: 0.86 }),
+  );
+  speaker.position.set(-0.08, 2.36, 0.296);
+  group.add(speaker);
+
+  const homeIndicator = new THREE.Mesh(
+    createRoundedPlaneGeometry(0.58, 0.035, 0.017),
+    new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.76 }),
+  );
+  homeIndicator.position.set(0, -2.34, 0.278);
+  group.add(homeIndicator);
+
+  const glassGlint = new THREE.Mesh(
+    createRoundedPlaneGeometry(0.08, 4.4, 0.04),
+    new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.14 }),
+  );
+  glassGlint.position.set(-0.94, 0.12, 0.282);
+  glassGlint.rotation.z = -0.08;
+  group.add(glassGlint);
 
   const buttonMaterial = edgeMaterial.clone();
   [
-    [-1.42, 1.24, 0.23],
-    [-1.42, 0.8, 0.23],
-    [1.42, 0.94, 0.3],
+    [-1.45, 1.45, 0.22],
+    [-1.45, 0.86, 0.34],
+    [-1.45, 0.38, 0.34],
+    [1.45, 0.78, 0.48],
   ].forEach(([x, y, h]) => {
     const button = new THREE.Mesh(
-      new THREE.BoxGeometry(0.035, h, 0.055),
+      new THREE.BoxGeometry(0.045, h, 0.072),
       buttonMaterial,
     );
-    button.position.set(x, y, 0.01);
+    button.position.set(x, y, 0.015);
     button.castShadow = true;
     group.add(button);
   });
@@ -267,7 +307,15 @@ function makePhone() {
 }
 
 const ThreeViewport = forwardRef(function ThreeViewport(
-  { screenImage, settings, onDragStart, onDragEnd },
+  {
+    screenMedia,
+    settings,
+    onDragStart,
+    onDragEnd,
+    onMediaError,
+    onMediaReady,
+    onPlaybackStateChange,
+  },
   ref,
 ) {
   const hostRef = useRef(null);
@@ -446,7 +494,7 @@ const ThreeViewport = forwardRef(function ThreeViewport(
         }
       });
     };
-  }, [onDragEnd, onDragStart, settings.angle]);
+  }, [onDragEnd, onDragStart]);
 
   useEffect(() => {
     const preset = CAMERA_PRESETS[settings.angle];
@@ -497,40 +545,113 @@ const ThreeViewport = forwardRef(function ThreeViewport(
 
   useEffect(() => {
     const screenMaterial = materialsRef.current?.screen;
-    if (!screenMaterial) return;
+    if (!screenMaterial) return undefined;
 
     let cancelled = false;
+    let videoElement = null;
 
     const setTexture = (texture, width, height) => {
       if (cancelled) {
         texture.dispose();
         return;
       }
+
       applyCoverCrop(texture, width, height);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+
       if (screenMaterial.map) screenMaterial.map.dispose();
       screenMaterial.map = texture;
       screenMaterial.needsUpdate = true;
     };
 
-    if (!screenImage) {
+    if (!screenMedia) {
       setTexture(makeDefaultScreenTexture(), 900, 1950);
+      onMediaReady?.();
       return () => {
         cancelled = true;
       };
     }
 
-    const loader = new THREE.TextureLoader();
-    loader.load(screenImage, (texture) => {
-      const image = texture.image;
-      setTexture(texture, image.naturalWidth || image.width, image.naturalHeight || image.height);
-    });
+    if (screenMedia.kind === "image") {
+      const loader = new THREE.TextureLoader();
+      loader.load(
+        screenMedia.url,
+        (texture) => {
+          const image = texture.image;
+          setTexture(
+            texture,
+            image.naturalWidth || image.width,
+            image.naturalHeight || image.height,
+          );
+          onMediaReady?.();
+        },
+        undefined,
+        () => onMediaError?.(),
+      );
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    videoElement = document.createElement("video");
+    videoElement.src = screenMedia.url;
+    videoElement.crossOrigin = "anonymous";
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.autoplay = true;
+    videoElement.preload = "auto";
+
+    const setVideoTexture = () => {
+      const width = videoElement.videoWidth || 1080;
+      const height = videoElement.videoHeight || 1920;
+      const texture = new THREE.VideoTexture(videoElement);
+      texture.generateMipmaps = false;
+      setTexture(texture, width, height);
+
+      videoElement.play().catch(() => {
+        onPlaybackStateChange?.("paused");
+      });
+    };
+
+    const handlePlaying = () => onPlaybackStateChange?.("playing");
+    const handlePause = () => {
+      if (!cancelled) onPlaybackStateChange?.("paused");
+    };
+    const handleError = () => onMediaError?.();
+
+    videoElement.addEventListener("loadedmetadata", setVideoTexture, { once: true });
+    videoElement.addEventListener("playing", handlePlaying);
+    videoElement.addEventListener("pause", handlePause);
+    videoElement.addEventListener("error", handleError);
+    videoElement.load();
 
     return () => {
       cancelled = true;
+      videoElement.removeEventListener("loadedmetadata", setVideoTexture);
+      videoElement.removeEventListener("playing", handlePlaying);
+      videoElement.removeEventListener("pause", handlePause);
+      videoElement.removeEventListener("error", handleError);
+      videoElement.pause();
+      videoElement.removeAttribute("src");
+      videoElement.load();
     };
-  }, [screenImage]);
+  }, [
+    onMediaError,
+    onMediaReady,
+    onPlaybackStateChange,
+    screenMedia,
+  ]);
 
-  return <div className="viewport-host" ref={hostRef} />;
+  return (
+    <div
+      className="viewport-host"
+      data-screen-kind={screenMedia?.kind ?? "default"}
+      ref={hostRef}
+    />
+  );
 });
 
 export default ThreeViewport;
